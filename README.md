@@ -59,4 +59,4 @@ stemma/
 
 ## 라이선스
 
-[Apache License 2.0](LICENSE)을 따른다. 저작권 표시는 [NOTICE](NOTICE)에 있다.
+[Apache License 2.0](LICENSE)을 따른다. 저작권 표시는 [NOTICE](https://github.com/2davi/stemma?tab=Apache-2.0-1-ov-file)에 있다.
