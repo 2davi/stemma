@@ -1,2 +1,62 @@
-# stemma
-A blog engine that treats writing like code: a block editor built from scratch and a Git-style revision graph with branches, merges, forks, and citations. Built to power the blog at the2davi.dev.
+# Stemma
+
+글을 코드처럼 다루는 블로그 엔진. 사용자 편의 UX 에디터와 블로그, Git의 객체 모델을 빌려 온 저장 이력 관리를 구현한다.
+
+## 이름의 유래
+
+stemma는 본문 비평(textual criticism)에서 한 텍스트의 필사본들이 어느 사본을 베껴 나왔는지 그린 족보(stemma codicum)다. 한 사본이 여러 원본을 섞어 베끼면 이 족보는 나무가 아니라 방향 비순환 그래프(DAG, Directed Acyclic Graph)가 된다. 부모가 둘인 병합 저장점을 품는 이 엔진의 저장 이력 그래프와 같은 모양이다. 용어의 정의는 [Parvum Lexicon Stemmatologicum](https://wiki.helsinki.fi/xwiki/bin/view/stemmatology/Stemma/)을 따랐다.
+
+## 핵심 설계
+
+| 설계 | 내용 |
+| --- | --- |
+| 블록 편집기 | 블록 하나가 `contenteditable` 요소 하나다. 한글 조합 입력, 되돌리기, 선택, 끌어 옮기기를 기성 편집기 라이브러리 없이 구현한다 |
+| 저장 이력 그래프 | [Git 객체 모델](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects)을 빌려 온다. 블록 내용은 내용 해시로 한 번만 저장하고, 저장점은 부모를 가리켜 그래프를 이룬다. 발행본은 태그다 |
+| 작업 영역과 저장점의 분리 | 자동 저장은 작업 영역만 고친다. 저장점은 저장이나 발행을 누를 때만 생긴다 |
+| 글 포크 | 다른 블로그의 발행본을 가져온다. 이력은 가져오지 않고, 귀속 표시는 지울 수 없다 |
+| 문서 인용 | 같은 블로그의 글이나 그 일부를 인용한다. 원본을 따라가되 바뀌면 알린다 |
+| 서비스 경계 | 회원과 블로그가 각자의 데이터베이스를 갖고 [트랜잭셔널 아웃박스(transactional outbox)](https://microservices.io/patterns/data/transactional-outbox.html)로 이벤트를 주고받는다 |
+| 쓰기와 읽기의 분리 | 쓰기는 블록 단위로 받고, 읽기는 발행 스냅샷 한 행을 통째로 내보낸다. 명령과 조회의 책임 분리(CQRS, Command Query Responsibility Segregation)를 문서 저장 한 곳에만 좁게 적용한 것이다 |
+
+## 기술 구성
+
+| 층 | 선택 |
+| --- | --- |
+| 프런트엔드 | React. 읽기 화면과 편집 화면의 진입점을 나눈다 |
+| 백엔드 | Spring Boot 서비스 둘. 블로그 엔진과 회원 |
+| 데이터베이스 | PostgreSQL. 서비스마다 데이터베이스를 따로 갖는다 |
+| 파일 | S3 호환 오브젝트 스토리지(object storage) |
+| 배포 | 가상 머신 한 대. 정적 화면은 오브젝트 스토리지와 CDN(Content Delivery Network)으로 낸다 |
+
+## 저장소 구성
+
+```text
+stemma/
+├── stemma-api/    블로그 엔진 백엔드
+├── account-api/   회원 서비스
+├── stemma-web/    React 프런트엔드
+├── contracts/     서비스 사이 이벤트 계약
+├── deploy/        배포 구성과 운영 절차
+├── docs/          개발 문서
+├── LICENSE
+├── NOTICE
+└── README.md
+```
+
+## 단계 계획
+
+| 단계 | 내용 | 기준 |
+| --- | --- | --- |
+| 0 | 저장소, 스키마 관리, 배포 경로, 인증 뼈대 | 빈 화면이 로그인 뒤에 뜨고 배포가 자동으로 돈다 |
+| 1 | 블록 모델, 순서 키, 이력 객체 모델, 편집기 핵심(문단과 제목 블록), 저장과 발행 | 글 하나를 쓰고 발행해서 읽을 수 있고 저장점이 쌓인다 |
+| 2 | 미디어 파이프라인과 나머지 블록 타입 | 이미지, GIF, 동영상, 파일, 링크, 썸네일이 들어간 글을 쓸 수 있다 |
+| 3 | 블록 선택, 끌어 옮기기, 제목 구간 조작, 임시보관함 | 블록과 구간을 골라 옮기고 빼 두고 다시 꺼낼 수 있다 |
+| 4 | 이력 그래프 표시, 분기와 병합, 탭 충돌 처리, 포크 | 저장 이력이 그래프로 보이고 갈래를 합칠 수 있다 |
+| 5 | 마크다운 변환기와 기존 글 이전, 주소 넘겨주기, 문서 인용 | 기존 블로그를 내려도 되는 상태 |
+| 6 | 다중 사용자, 블로그 분리, 권한 | 다른 계정이 자기 블로그를 쓸 수 있다 |
+| 7 | 테마와 레이아웃 설정, 말머리와 메뉴 | 계정마다 다른 모습의 블로그가 나온다 |
+| 8 | 댓글, 반응, 검색 | 읽는 쪽 기능이 붙는다 |
+
+## 라이선스
+
+[Apache License 2.0](LICENSE)을 따른다. 저작권 표시는 [NOTICE](NOTICE)에 있다.
